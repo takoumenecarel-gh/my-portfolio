@@ -4,6 +4,7 @@ name: CI
 on:
   push:
     branches: [ "main" ]
+    
   pull_request:
     branches: [ "main" ]
  
@@ -15,9 +16,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build image
-        run: docker build -t takoumenecarel/potfolio .
+        run: docker build -t ${{secrets.REGISTRY_USER}}/potfolio .
 
       - name: push image
         run: |
-          docker login -u takoumenecarel -p ${{secrets.REGISTRY_PASS}}
-          docker push takoumenecarel
+          docker login -u ${{secrets.REGISTRY_USER}} -p ${{secrets.REGISTRY_PASS}}
+          docker push ${{secrets.REGISTRY_USER}}/potfolio
