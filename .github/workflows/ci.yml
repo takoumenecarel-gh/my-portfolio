@@ -16,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build image
-        run: docker build -t ${{secrets.REGISTRY_USER}}/potfolio .
+        run: docker build -t ${{secrets.REGISTRY_USER}}/portfolio .
 
       - name: push image
         run: |
