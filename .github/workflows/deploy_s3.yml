@@ -42,9 +42,13 @@ jobs:
           role-session-name: github-actions-session
           aws-region: us-east-1
 
-      - name: Sync to S3
-        run: |
-          aws s3 sync . s3://deploy-s3.stepin.ink \
-            --delete \
-            --exclude ".git/*" \
-            --exclude ".github/*"
+      - name: Deploy to S3
+        uses: jakejarvis/s3-sync-action@v0.6.0
+        with:
+          args: --acl public-read --delete --exclude ".git/*" --exclude ".github/*"
+          bucket: deploy-s3.stepin.ink
+          source-dir: .
+        env:
+         AWS_REGION: us-east-1
+         AWS_ROLE_TO_ASSUME: arn:aws:iam::351554785424:role/OIDC-ROLE
+
