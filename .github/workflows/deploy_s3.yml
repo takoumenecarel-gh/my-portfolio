@@ -45,7 +45,7 @@ jobs:
       - name: Deploy to S3
         uses: jakejarvis/s3-sync-action@v0.6.0
         with:
-          args: --acl public-read --delete --exclude ".git/*" --exclude ".github/*"
+          args: --delete --exclude ".git/*" --exclude ".github/*"
           bucket: deploy-s3.stepin.ink
           source-dir: .
         env:
