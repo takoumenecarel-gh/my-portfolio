@@ -1,0 +1,21 @@
+name: Utc App ci/cd
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+    python_version: "3.11"
+jobs: 
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                python-version: ${{env.python_version}}   # or $python_version
+            - name: unit test
+              run: pytest
+            - name: Build image
+              run: docker build -t takoumenecarel-gh/portcicd .     
