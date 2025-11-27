@@ -3,35 +3,48 @@ name: deploy_s3
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
 
 env:
-    python_version: "3.11"
-jobs: 
-    build_job:
-        runs-on: ubuntu-latest
+  python_version: "3.10"
 
-        steps:
-            - uses: actions/checkout@v4
-              with:
-                python-version: ${{env.python_version}}   # or $python_version
+jobs:
+  build_job:
+    runs-on: ubuntu-latest
 
-            - name: unit test
-              run: pytest
+    permissions:
+      id-token: write    # Required for OIDC authentication
+      contents: read
 
-            - name: Build image
-              run: docker build -t takoumenecarel-gh/portcicd .  
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-            - name: configure AWS credentials via OIDC
-              uses: aws-actions/configure-aws-credentials@v4
-              with:
-                role-to-assume: arn:aws:iam::351554785424:role/OIDC-ROLE
-                aws-region: us-east-1
-                
-            - name: Sync to S3
-              run: |
-                aws s3 sync . s3://deploy-s3.stepin.ink \
-                --delete \
-                --exclude ".git/*" \
-                --exclude ".github/*"
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.python_version }}
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt || true
+          pip install pytest
+
+      - name: Run tests
+        run: pytest
+
+      - name: Build Docker Image
+        run: docker build -t takoumenecarel-gh/portcicd .
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::351554785424:role/OIDC-ROLE
+          role-session-name: github-actions-session
+          aws-region: us-east-1
+
+      - name: Sync to S3
+        run: |
+          aws s3 sync . s3://deploy-s3.stepin.ink \
+            --delete \
+            --exclude ".git/*" \
+            --exclude ".github/*"
