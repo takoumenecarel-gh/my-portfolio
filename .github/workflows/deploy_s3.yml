@@ -9,13 +9,29 @@ on:
 env:
     python_version: "3.11"
 jobs: 
-    build:
+    build_job:
         runs-on: ubuntu-latest
+
         steps:
             - uses: actions/checkout@v4
               with:
                 python-version: ${{env.python_version}}   # or $python_version
+
             - name: unit test
               run: pytest
+
             - name: Build image
-              run: docker build -t takoumenecarel-gh/portcicd .     
+              run: docker build -t takoumenecarel-gh/portcicd .  
+
+            - name: configure AWS credentials via OIDC
+              uses: aws-actions/configure-aws-credentials@v4
+              with:
+                role-to-assume: arn:aws:iam::351554785424:role/OIDC-ROLE
+                aws-region: us-east-1
+                
+            - name: Sync to S3
+              run: |
+                aws s3 sync . s3://deploy-s3.stepin.ink \
+                --delete \
+                --exclude ".git/*" \
+                --exclude ".github/*"
