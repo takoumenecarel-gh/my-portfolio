@@ -1,4 +1,4 @@
-name: Utc App ci/cd
+name: deploy_s3
 
 on:
   push:
