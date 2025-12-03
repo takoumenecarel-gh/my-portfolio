@@ -15,7 +15,7 @@ env:
   IMAGE_NAME: portfolio
   AWS_REGION: us-east-1
   ACCOUNT_ID: ${{ secrets.ACCOUNT_ID }}
-  ECR_REPO: ${{ secrets.ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/dev
+  ECR_REPO: ${{ secrets.ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/dev/portfolio
 
 jobs:
   build:
@@ -64,8 +64,8 @@ jobs:
         with:
           image-ref: ${{ env.ECR_REPO }}:latest
           format: table
-          exit-code: '0' # Not to fail workflow on critical/high vulnerabilities
-          severity: CRITICAL
+          exit-code: '1' # Not to fail workflow on critical/high vulnerabilities
+          severity: CRITICAL, HIGH
 
       # 7. Push Docker image to ECR
       - name: Push Docker image to Amazon ECR
