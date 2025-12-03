@@ -65,6 +65,11 @@ jobs:
       runs-on: ubuntu-latest 
       steps:
         - uses: actions/checkout@v4
+        - name: Configure AWS credentials using OIDC
+          uses: aws-actions/configure-aws-credentials@v2
+          with:
+           role-to-assume: ${{ secrets.ROLE_ARN }}
+           aws-region: ${{ env.AWS_REGION }}
         - name: Render ECS task definition with new image
           id: taskdef
           uses: aws-actions/amazon-ecs-render-task-definition@v1
