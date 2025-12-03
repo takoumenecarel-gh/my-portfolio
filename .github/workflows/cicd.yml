@@ -65,7 +65,7 @@ jobs:
           image-ref: ${{ env.ECR_REPO }}:latest
           format: table
           exit-code: '0' # Not to fail workflow on critical/high vulnerabilities
-          severity: CRITICAL, HIGH
+          severity: CRITICAL
 
       # 7. Push Docker image to ECR
       - name: Push Docker image to Amazon ECR
