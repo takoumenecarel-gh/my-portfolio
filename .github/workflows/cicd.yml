@@ -6,8 +6,17 @@ on:
   pull_request:
     branches: [ "main" ]
 
+permissions:
+      id-token: write    # Required for OIDC authentication
+      contents: read
+
 env:
     python_version: "3.11"
+    IMAGE_NAME: portfolio
+    AWS_REGION: us-east-1
+    ACCOUNT_ID: ${{ secrets.ACCOUNT_ID}}
+    ECR_REPO: $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$IMAGE_NAME
+
 jobs: 
     build:
         runs-on: ubuntu-latest
@@ -17,5 +26,11 @@ jobs:
                 python-version: ${{env.python_version}}   # or $python_version
             - name: unit test
               run: pytest
-            - name: Build image
-              run: docker build -t takoumenecarel-gh/portcicd .     
+            - name: Configure AWS credentials using OIDC
+              uses: aws-actions/configure-aws-credentials@v2
+              with:
+                role-to-assume: ${{ secrets.ROLE_ARN }}
+                aws-region: ${{ env.AWS_REGION }}
+            
+            - name: Check credentials   
+              run: aws s3 ls 
