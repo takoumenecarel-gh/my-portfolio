@@ -28,6 +28,9 @@ jobs:
         with:
           python-version: ${{ env.python_version }}
 
+      - name: Install dependencies
+        run: pip install flask pytest    
+
       - name: Install pytest
         run: pip install pytest
 
