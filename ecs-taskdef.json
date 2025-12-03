@@ -1,0 +1,76 @@
+{
+  "compatibilities": [
+    "EC2",
+    "MANAGED_INSTANCES",
+    "FARGATE"
+  ],
+  "containerDefinitions": [
+    {
+      "cpu": 0,
+      "environment": [],
+      "essential": true,
+      "image": "nginx",
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/nginx-fargate",
+          "awslogs-region": "us-east-1",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "mountPoints": [],
+      "name": "nginx",
+      "portMappings": [
+        {
+          "containerPort": 80,
+          "hostPort": 80,
+          "protocol": "tcp"
+        }
+      ],
+      "systemControls": [],
+      "volumesFrom": []
+    }
+  ],
+  "cpu": "256",
+  "executionRoleArn": "arn:aws:iam::351554785424:role/nginx-fargate-ecs-task-execution-role",
+  "family": "nginx-fargate-task",
+  "memory": "512",
+  "networkMode": "awsvpc",
+  "placementConstraints": [],
+  "registeredAt": "2025-12-03T03:16:05.623Z",
+  "registeredBy": "arn:aws:iam::351554785424:user/terraformuser",
+  "requiresAttributes": [
+    {
+      "name": "com.amazonaws.ecs.capability.logging-driver.awslogs"
+    },
+    {
+      "name": "ecs.capability.execution-role-awslogs"
+    },
+    {
+      "name": "com.amazonaws.ecs.capability.docker-remote-api.1.19"
+    },
+    {
+      "name": "com.amazonaws.ecs.capability.task-iam-role"
+    },
+    {
+      "name": "com.amazonaws.ecs.capability.docker-remote-api.1.18"
+    },
+    {
+      "name": "ecs.capability.task-eni"
+    }
+  ],
+  "requiresCompatibilities": [
+    "FARGATE"
+  ],
+  "revision": 5,
+  "status": "ACTIVE",
+  "taskDefinitionArn": "arn:aws:ecs:us-east-1:351554785424:task-definition/nginx-fargate-task:5",
+  "taskRoleArn": "arn:aws:iam::351554785424:role/nginx-fargate-ecs-task-role",
+  "volumes": [],
+  "tags": [
+    {
+      "key": "Name",
+      "value": "nginx-fargate-task-definition"
+    }
+  ]
+}
