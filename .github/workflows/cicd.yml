@@ -7,30 +7,38 @@ on:
     branches: [ "main" ]
 
 permissions:
-      id-token: write    # Required for OIDC authentication
-      contents: read
+  id-token: write
+  contents: read
 
 env:
-    python_version: "3.11"
-    IMAGE_NAME: portfolio
-    AWS_REGION: us-east-1
-    ACCOUNT_ID: ${{ secrets.ACCOUNT_ID}}
-    ECR_REPO: $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$IMAGE_NAME
+  python_version: "3.11"
+  IMAGE_NAME: portfolio
+  AWS_REGION: us-east-1
+  ACCOUNT_ID: ${{ secrets.ACCOUNT_ID }}
+  ECR_REPO: $ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$IMAGE_NAME
 
-jobs: 
-    build:
-        runs-on: ubuntu-latest
-        steps:
-            - uses: actions/checkout@v4
-              with:
-                python-version: ${{env.python_version}}   # or $python_version
-            - name: unit test
-              run: pytest test.py
-            - name: Configure AWS credentials using OIDC
-              uses: aws-actions/configure-aws-credentials@v2
-              with:
-                role-to-assume: ${{ secrets.ROLE_ARN }}
-                aws-region: ${{ env.AWS_REGION }}
-            
-            - name: Check credentials   
-              run: aws s3 ls 
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ env.python_version }}
+
+      - name: Install pytest
+        run: pip install pytest
+
+      - name: Unit test
+        run: pytest test.py
+
+      - name: Configure AWS credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Check credentials
+        run: aws s3 ls
