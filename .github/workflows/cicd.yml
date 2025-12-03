@@ -14,7 +14,7 @@ env:
   IMAGE_NAME: portfolio
   AWS_REGION: us-east-1
   ACCOUNT_ID: ${{ secrets.ACCOUNT_ID }}
-  ECR_REPO: ${{ secrets.ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/dev/portfolio
+  ECR_REPO: ${{ secrets.ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/dev
 
 jobs:
   build:
@@ -30,7 +30,7 @@ jobs:
         run: pip install -r requirements.txt
       - name: unit test
         run: pytest test.py
-        
+
       - name: Configure AWS credentials using OIDC
         uses: aws-actions/configure-aws-credentials@v2
         with:
