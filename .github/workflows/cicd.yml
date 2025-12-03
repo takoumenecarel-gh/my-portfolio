@@ -15,7 +15,7 @@ env:
   IMAGE_NAME: portfolio
   AWS_REGION: us-east-1
   ACCOUNT_ID: ${{ secrets.ACCOUNT_ID }}
-  ECR_REPO: ${ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/dev
+  ECR_REPO: ${{ secrets.ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com/dev/portfolio
 
 jobs:
   build:
@@ -70,4 +70,4 @@ jobs:
       # 7. Push Docker image to ECR
       - name: Push Docker image to Amazon ECR
         run: |
-          docker push ${{ env.ECR_REPO }}:latest 
+          docker push ${{ env.ECR_REPO }}:latest
