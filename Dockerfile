@@ -1,14 +1,12 @@
-
-FROM python:3.9-slim
-
+# Dockerfile
+FROM node:20-alpine AS builder
 WORKDIR /app
-
+COPY package*.json ./
+RUN npm ci
 COPY . .
+RUN npm run build
 
-RUN pip install --no-cache-dir -r requirements.txt
-
+FROM nginx:alpine
+COPY --from=builder /app/dist /usr/share/nginx/html
 EXPOSE 80
-
-ENV FLASK_APP=app.py
-
-CMD ["python", "-m", "flask", "run", "--host=0.0.0.0", "--port=80"]
+CMD ["nginx", "-g", "daemon off;"]
