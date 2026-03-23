@@ -7,7 +7,7 @@ on:
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: my-portfolio
-  EKS_CLUSTER: my-cluster
+  EKS_CLUSTER: -cluster
   HELM_RELEASE: portfolio
 
 jobs:
