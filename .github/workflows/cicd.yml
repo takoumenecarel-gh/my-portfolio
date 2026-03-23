@@ -7,8 +7,9 @@ on:
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: my-portfolio
-  EKS_CLUSTER: -cluster
+  EKS_CLUSTER: my-cluster
   HELM_RELEASE: portfolio
+  JAVA_VERSION: "21"
 
 jobs:
   build-and-deploy:
@@ -18,6 +19,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # ── Java build ──────────────────────────────────────────────
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+
+      - name: Run tests
+        run: mvn test -q
+
+      - name: Build JAR
+        run: mvn clean package -DskipTests -q
+
+      # ── AWS + ECR ───────────────────────────────────────────────
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -29,7 +45,7 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build and push image
+      - name: Build and push Docker image
         run: |
           ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG=${{ github.sha }}
@@ -38,8 +54,9 @@ jobs:
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
           echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
-          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+          echo "IMAGE_TAG=$IMAGE_TAG"       >> $GITHUB_ENV
 
+      # ── EKS + Helm ──────────────────────────────────────────────
       - name: Update kubeconfig
         run: |
           aws eks update-kubeconfig \
@@ -56,5 +73,14 @@ jobs:
             --set image.repository=$ECR_REGISTRY/$ECR_REPOSITORY \
             --set image.tag=$IMAGE_TAG \
             --set ingress.host=portfolio.yourdomain.com \
+            --set service.port=8080 \
+            --set service.targetPort=8080 \
             --namespace portfolio \
             --wait
+
+      # ── Smoke test ──────────────────────────────────────────────
+      - name: Smoke test
+        run: |
+          kubectl rollout status deployment/$HELM_RELEASE \
+            -n portfolio --timeout=120s
+          echo "Deployment successful"
