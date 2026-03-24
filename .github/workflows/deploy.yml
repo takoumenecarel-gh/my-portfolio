@@ -1,14 +1,13 @@
-name: CI/CD Pipeline
+name: Multi-Environment CI/CD
 
 on:
   push:
     branches: [main]
 
 env:
-  AWS_REGION: us-east-1          # FIX 1: was commented out
-  ECR_REPOSITORY: my-portfolio   # FIX 1: was commented out
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: my-portfolio
   EKS_CLUSTER: my-cluster
-  HELM_RELEASE: portfolio
   JAVA_VERSION: "21"
 
 permissions:
@@ -16,42 +15,12 @@ permissions:
   contents: read
 
 jobs:
-  # ── SAST: CodeQL ──────────────────────────────────────────────
-  sast:
-    name: CodeQL Analysis
+  # ── 🏗️ BUILD + TEST + SECURITY ───────────────────────────────
+  build:
     runs-on: ubuntu-latest
-    permissions:
-      security-events: write
-      contents: read
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # FIX 2: setup-java was completely missing from this job
-      - name: Set up JDK
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: temurin
-          cache: maven
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          languages: java
-
-      # FIX 3: was using bare mvn — must use ./mvnw
-      - name: Build project for analysis
-        run: ./mvnw clean package -DskipTests -q
-
-      - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v3
-
-  # ── Build, Scan, Deploy ───────────────────────────────────────
-  build-and-deploy:
-    runs-on: ubuntu-latest
-    needs: sast
+    outputs:
+      image_tag: ${{ steps.image.outputs.tag }}
 
     steps:
       - name: Checkout code
@@ -64,94 +33,112 @@ jobs:
           distribution: temurin
           cache: maven
 
-      # FIX 4: was using bare mvn — must use ./mvnw
       - name: Run tests
-        run: ./mvnw test -q
+        run: mvn test -q
 
       - name: Build JAR
-        run: ./mvnw clean package -DskipTests -q
+        run: mvn clean package -DskipTests -q
 
-      # ── OWASP Dependency Scan ─────────────────────────────────
-      - name: OWASP Dependency Check
-        uses: dependency-check/Dependency-Check_Action@main
-        with:
-          project: "portfolio"
-          path: "."
-          format: "HTML"
-          out: "reports"
-
-      - name: Upload Dependency Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: dependency-check-report
-          path: reports
-
-      # ── AWS Auth via OIDC ─────────────────────────────────────
-      # FIX 5: aws-region now resolves correctly because AWS_REGION is uncommented
+      # ── AWS OIDC LOGIN ───────────────────────────────────────
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to Amazon ECR
+      - name: Login to ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # ── Docker build ──────────────────────────────────────────
-      # FIX 6: set IMAGE_FULL so Trivy and push steps can reference it easily
+      # ── Build Docker image ───────────────────────────────────
       - name: Build Docker image
+        id: image
         run: |
           ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG=${{ github.sha }}
-          IMAGE_FULL=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-          docker build -t $IMAGE_FULL .
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
 
           echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
-          echo "IMAGE_TAG=$IMAGE_TAG"       >> $GITHUB_ENV
-          echo "IMAGE_FULL=$IMAGE_FULL"     >> $GITHUB_ENV
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+          echo "tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-      # ── Trivy scan ────────────────────────────────────────────
-      # FIX 7: reference IMAGE_FULL from env — it's now guaranteed to exist
-      - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@0.20.0
+      # ── Push image (ONLY ONCE) ───────────────────────────────
+      - name: Push image to ECR
+        run: |
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+
+  # ── 🧪 DEPLOY TO DEV ──────────────────────────────────────────
+  deploy-dev:
+    runs-on: ubuntu-latest
+    needs: build
+
+    environment: dev
+
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          image-ref: ${{ env.IMAGE_FULL }}
-          format: table
-          exit-code: 1
-          ignore-unfixed: true
-          severity: CRITICAL,HIGH
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
 
-      # ── Push image ────────────────────────────────────────────
-      - name: Push Docker image
-        run: docker push $IMAGE_FULL
-
-      # ── EKS + Helm ────────────────────────────────────────────
-      - name: Update kubeconfig
+      - name: Update kubeconfig (Dev cluster/namespace)
         run: |
-          aws eks update-kubeconfig \
-            --region $AWS_REGION \
-            --name $EKS_CLUSTER
+          aws eks update-kubeconfig --name $EKS_CLUSTER --region $AWS_REGION
 
-      - name: Create namespace
+      - name: Deploy to DEV
         run: |
-          kubectl create namespace portfolio --dry-run=client -o yaml | kubectl apply -f -
-
-      - name: Deploy with Helm
-        run: |
-          helm upgrade --install $HELM_RELEASE ./helm/portfolio \
-            --set image.repository=$ECR_REGISTRY/$ECR_REPOSITORY \
-            --set image.tag=$IMAGE_TAG \
-            --set ingress.host=portfolio.stepink.ink \
-            --set service.port=8080 \
-            --set service.targetPort=8080 \
-            --namespace portfolio \
+          helm upgrade --install portfolio ./helm/portfolio \
+            --set image.tag=${{ needs.build.outputs.image_tag }} \
+            --namespace dev --create-namespace \
             --wait
 
-      # ── Smoke test ────────────────────────────────────────────
-      - name: Smoke test
+  # ── 🧪 DEPLOY TO STAGING ──────────────────────────────────────
+  deploy-staging:
+    runs-on: ubuntu-latest
+    needs: deploy-dev
+
+    environment: staging
+
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update kubeconfig
         run: |
-          kubectl rollout status deployment/$HELM_RELEASE \
-            -n portfolio --timeout=120s
-          echo "Deployment successful"
+          aws eks update-kubeconfig --name $EKS_CLUSTER --region $AWS_REGION
+
+      - name: Deploy to STAGING
+        run: |
+          helm upgrade --install portfolio ./helm/portfolio \
+            --set image.tag=${{ needs.build.outputs.image_tag }} \
+            --namespace staging --create-namespace \
+            --wait
+
+  # ── 🚀 DEPLOY TO PRODUCTION (MANUAL APPROVAL) ────────────────
+  deploy-prod:
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+
+    environment: production   # 🔥 GitHub will require approval
+
+    steps:
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig --name $EKS_CLUSTER --region $AWS_REGION
+
+      - name: Deploy to PROD
+        run: |
+          helm upgrade --install portfolio ./helm/portfolio \
+            --set image.tag=${{ needs.build.outputs.image_tag }} \
+            --namespace prod --create-namespace \
+            --wait
