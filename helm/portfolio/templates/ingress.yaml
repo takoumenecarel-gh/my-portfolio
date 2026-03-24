@@ -3,7 +3,16 @@ kind: Ingress
 metadata:
   name: {{ .Release.Name }}
   annotations:
-    {{- toYaml .Values.ingress.annotations | nindent 4 }}
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+
+    # ✅ FIX: HEALTH CHECK PATH
+    alb.ingress.kubernetes.io/healthcheck-path: /
+
+    # ✅ FIX: LISTEN PORTS
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+
 spec:
   ingressClassName: alb
   rules:

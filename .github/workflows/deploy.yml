@@ -9,6 +9,7 @@ env:
   ECR_REPOSITORY: my-portfolio
   EKS_CLUSTER: my-cluster
   HELM_RELEASE: portfolio
+  NAMESPACE: portfolio
   JAVA_VERSION: "21"
 
 permissions:
@@ -48,6 +49,7 @@ jobs:
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
 
+
   build-and-deploy:
     runs-on: ubuntu-latest
     needs: sast
@@ -66,12 +68,15 @@ jobs:
       - name: Make mvnw executable
         run: chmod +x ./mvnw
 
+      # ✅ Single build only (optimized)
       - name: Run tests
         run: ./mvnw test -q
 
       - name: Build JAR
         run: ./mvnw clean package -DskipTests -q
-      - name: Configure AWS credentials (OIDC)
+
+      # 🔐 AWS login (OIDC)
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
@@ -81,18 +86,22 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      # 🐳 Docker build
       - name: Build Docker image
         run: |
           ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG=${{ github.sha }}
           IMAGE_FULL=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker build -t $IMAGE_FULL .
-          echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
-          echo "IMAGE_TAG=$IMAGE_TAG"       >> $GITHUB_ENV
-          echo "IMAGE_FULL=$IMAGE_FULL"     >> $GITHUB_ENV
 
+          docker build -t $IMAGE_FULL .
+
+          echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
+          echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV
+          echo "IMAGE_FULL=$IMAGE_FULL" >> $GITHUB_ENV
+
+      # 🔍 Security scan
       - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
+        uses: aquasecurity/trivy-action@v0.24.0
         with:
           image-ref: ${{ env.IMAGE_FULL }}
           format: table
@@ -100,9 +109,11 @@ jobs:
           ignore-unfixed: true
           severity: CRITICAL,HIGH
 
+      # 🚀 Push image
       - name: Push Docker image
         run: docker push $IMAGE_FULL
 
+      # ☸️ Kubernetes access
       - name: Update kubeconfig
         run: |
           aws eks update-kubeconfig \
@@ -111,8 +122,9 @@ jobs:
 
       - name: Create namespace
         run: |
-          kubectl create namespace portfolio --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
 
+      # 🚀 Deploy with Helm
       - name: Deploy with Helm
         run: |
           helm upgrade --install $HELM_RELEASE ./helm/portfolio \
@@ -121,11 +133,26 @@ jobs:
             --set ingress.host=portfolio.stepin.ink \
             --set service.port=8080 \
             --set service.targetPort=8080 \
-            --namespace portfolio \
+            --namespace $NAMESPACE \
             --wait
 
-      - name: Smoke test
+      # ⏳ Wait for rollout
+      - name: Wait for rollout
         run: |
           kubectl rollout status deployment/$HELM_RELEASE \
-            -n portfolio --timeout=120s
-          echo Deployment successful
+            -n $NAMESPACE --timeout=180s
+
+      # 🌍 Real smoke test (IMPORTANT FIX)
+      - name: Smoke test (ALB check)
+        run: |
+          ALB_URL=$(kubectl get ingress $HELM_RELEASE -n $NAMESPACE -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')
+
+          echo "Testing http://$ALB_URL"
+
+          curl -f http://$ALB_URL || exit 1
+
+      # 🔁 Rollback if anything fails
+      - name: Rollback on failure
+        if: failure()
+        run: |
+          helm rollback $HELM_RELEASE -n $NAMESPACE
