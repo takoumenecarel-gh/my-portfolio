@@ -76,7 +76,7 @@ jobs:
 
       # ── OWASP Dependency Scan ─────────────────────────────────
       - name: OWASP Dependency Check
-        uses: dependency-check/Dependency-Check_Action@main
+        run: ./mvnw org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7 -q
         with:
           project: "portfolio"
           path: "."
@@ -87,7 +87,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dependency-check-report
-          path: reports
+          path: target/dependency-check-report.html
 
       # ── AWS Auth via OIDC ─────────────────────────────────────
       - name: Configure AWS credentials (OIDC)
