@@ -115,7 +115,7 @@ jobs:
       # ── Trivy scan ────────────────────────────────────────────
       # FIX 7: reference IMAGE_FULL from env — it's now guaranteed to exist
       - name: Scan image with Trivy
-        uses: aquasecurity/trivy-action@0.20.0
+        uses: aquasecurity/trivy-action@master
         with:
           image-ref: ${{ env.IMAGE_FULL }}
           format: table
