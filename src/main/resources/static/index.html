@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>NEBULA OPS // CAREL</title>
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800&display=swap');
+
+body {
+  margin: 0;
+  font-family: 'Orbitron', sans-serif;
+  background: radial-gradient(circle at center, #050816, #000000);
+  color: #00f5ff;
+  overflow-x: hidden;
+}
+
+/* scanlines effect */
+body::before {
+  content: "";
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255,255,255,0.03),
+    rgba(255,255,255,0.03) 1px,
+    transparent 2px,
+    transparent 4px
+  );
+  pointer-events: none;
+}
+
+/* top HUD */
+header {
+  text-align: center;
+  padding: 50px 20px;
+  border-bottom: 1px solid rgba(0,255,255,0.2);
+}
+
+h1 {
+  font-size: 40px;
+  letter-spacing: 3px;
+  text-shadow: 0 0 20px #00f5ff;
+}
+
+.subtitle {
+  color: #7df9ff;
+  font-size: 14px;
+}
+
+/* grid layout */
+.container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  padding: 30px;
+}
+
+/* panels */
+.panel {
+  border: 1px solid rgba(0,255,255,0.3);
+  background: rgba(0,255,255,0.03);
+  padding: 20px;
+  box-shadow: 0 0 15px rgba(0,255,255,0.1);
+  position: relative;
+  overflow: hidden;
+}
+
+.panel::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -50%;
+  width: 200%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #00f5ff, transparent);
+  animation: scan 3s linear infinite;
+}
+
+@keyframes scan {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(100%); }
+}
+
+/* terminal */
+.terminal {
+  background: black;
+  color: #00ff88;
+  padding: 15px;
+  font-size: 12px;
+  height: 200px;
+  overflow: hidden;
+  border: 1px solid #00ff88;
+}
+
+/* status dots */
+.dot {
+  height: 10px;
+  width: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+}
+
+.green { background: #00ff88; box-shadow: 0 0 10px #00ff88; }
+.yellow { background: #ffcc00; box-shadow: 0 0 10px #ffcc00; }
+.red { background: #ff004c; box-shadow: 0 0 10px #ff004c; }
+
+button {
+  margin-top: 10px;
+  padding: 10px;
+  background: transparent;
+  border: 1px solid #00f5ff;
+  color: #00f5ff;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+button:hover {
+  background: #00f5ff;
+  color: black;
+  box-shadow: 0 0 15px #00f5ff;
+}
+
+/* full width footer panel */
+.footer {
+  grid-column: span 2;
+  text-align: center;
+  opacity: 0.7;
+  font-size: 12px;
+}
+
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>NEBULA OPS // CAREL TAKOUMENE SYSTEM</h1>
+  <div class="subtitle">AWS • KUBERNETES • CI/CD • TERRAFORM • ARGO CD</div>
+</header>
+
+<div class="container">
+
+  <!-- STATUS PANEL -->
+  <div class="panel">
+    <h2>📡 SYSTEM STATUS</h2>
+    <p><span class="dot green"></span> CI/CD PIPELINE: ACTIVE</p>
+    <p><span class="dot green"></span> EKS CLUSTER: ONLINE</p>
+    <p><span class="dot yellow"></span> MONITORING: STANDBY</p>
+    <p><span class="dot green"></span> SECURITY SCAN: ENABLED</p>
+  </div>
+
+  <!-- ABOUT -->
+  <div class="panel">
+    <h2>👨‍🚀 ENGINEER PROFILE</h2>
+    <p>
+      Cloud systems architect specializing in distributed infrastructure,
+      automated deployments, and secure DevSecOps pipelines across AWS.
+    </p>
+    <p>MISSION: Build self-healing, scalable systems.</p>
+  </div>
+
+  <!-- TERMINAL -->
+  <div class="panel">
+    <h2>💻 DEPLOYMENT TERMINAL</h2>
+    <div class="terminal" id="terminal">
+> initializing pipeline...
+> checking git commit: OK
+> running security scans...
+> building docker image...
+> pushing to ECR...
+> deploying to EKS cluster...
+> waiting for rollout...
+    </div>
+    <button onclick="runDeploy()">RUN DEPLOYMENT</button>
+  </div>
+
+  <!-- TECH STACK -->
+  <div class="panel">
+    <h2>⚙️ INFRASTRUCTURE STACK</h2>
+    <p>☁ AWS | EKS | ECR</p>
+    <p>🐳 Docker | Kubernetes | Helm</p>
+    <p>⚡ GitHub Actions | OIDC</p>
+    <p>🛡 SonarQube | Trivy | OWASP</p>
+    <p>📦 Terraform | Argo CD</p>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="panel footer">
+    SYSTEM RUNNING ON KUBERNETES GRID // ALL SERVICES OPERATIONAL
+  </div>
+
+</div>
+
+<script>
+function runDeploy() {
+  const terminal = document.getElementById("terminal");
+
+  terminal.innerHTML += "\n> triggering CI/CD pipeline...\n";
+  terminal.innerHTML += "> deploying new version...\n";
+  terminal.innerHTML += "> success ✔ system stable\n";
+}
+</script>
+
+</body>
+</html>

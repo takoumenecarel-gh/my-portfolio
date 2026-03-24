@@ -149,7 +149,7 @@ jobs:
 
           echo "Testing http://$ALB_URL"
 
-          curl -f http://$ALB_URL || exit 1
+          curl -f -H "Host: portfolio.stepin.ink" http://$ALB_URL || exit 1
 
       # 🔁 Rollback if anything fails
       - name: Rollback on failure
