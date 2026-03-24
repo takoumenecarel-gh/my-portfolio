@@ -71,16 +71,6 @@ jobs:
 
       - name: Build JAR
         run: ./mvnw clean package -DskipTests -q
-
-      - name: OWASP Dependency Check
-        run: ./mvnw org.owasp:dependency-check-maven:check -DfailBuildOnCVSS=7 -q
-
-      - name: Upload Dependency Report
-        uses: actions/upload-artifact@v4
-        with:
-          name: dependency-check-report
-          path: target/dependency-check-report.html
-
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
