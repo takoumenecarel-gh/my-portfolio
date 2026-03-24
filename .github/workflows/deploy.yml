@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 jobs:
-  # ── SAST: CodeQL ───────────────────────────────────────────
+  # ── SAST: CodeQL ────────────────────────────────────
   sast:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
