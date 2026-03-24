@@ -5,19 +5,18 @@ on:
     branches: [main]
 
 env:
-  # AWS_REGION: us-east-1
-  # ECR_REPOSITORY: my-portfolio
+  AWS_REGION: us-east-1          # FIX 1: was commented out
+  ECR_REPOSITORY: my-portfolio   # FIX 1: was commented out
   EKS_CLUSTER: my-cluster
   HELM_RELEASE: portfolio
   JAVA_VERSION: "21"
 
-# 🔥 REQUIRED FOR OIDC
 permissions:
   id-token: write
   contents: read
 
 jobs:
-  # ── 🔍 SAST: CodeQL ───────────────────────────────────────────
+  # ── SAST: CodeQL ──────────────────────────────────────────────
   sast:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
@@ -29,18 +28,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # FIX 2: setup-java was completely missing from this job
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: temurin
+          cache: maven
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: java
 
+      # FIX 3: was using bare mvn — must use ./mvnw
       - name: Build project for analysis
-        run: mvn clean package -DskipTests
+        run: ./mvnw clean package -DskipTests -q
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
 
-  # ── 🚀 Build, Scan, and Deploy ────────────────────────────────
+  # ── Build, Scan, Deploy ───────────────────────────────────────
   build-and-deploy:
     runs-on: ubuntu-latest
     needs: sast
@@ -49,7 +57,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ── Java build ────────────────────────────────────────────
       - name: Set up JDK
         uses: actions/setup-java@v4
         with:
@@ -57,13 +64,14 @@ jobs:
           distribution: temurin
           cache: maven
 
+      # FIX 4: was using bare mvn — must use ./mvnw
       - name: Run tests
-        run: mvn test -q
+        run: ./mvnw test -q
 
       - name: Build JAR
-        run: mvn clean package -DskipTests -q
+        run: ./mvnw clean package -DskipTests -q
 
-      # ── 🔍 Dependency Scan (OWASP) ─────────────────────────────
+      # ── OWASP Dependency Scan ─────────────────────────────────
       - name: OWASP Dependency Check
         uses: dependency-check/Dependency-Check_Action@main
         with:
@@ -78,7 +86,8 @@ jobs:
           name: dependency-check-report
           path: reports
 
-      # ── 🔐 AWS AUTH WITH OIDC (🔥 replaces access keys) ───────
+      # ── AWS Auth via OIDC ─────────────────────────────────────
+      # FIX 5: aws-region now resolves correctly because AWS_REGION is uncommented
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -89,33 +98,36 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      # ── 🐳 Build Docker image ─────────────────────────────────
+      # ── Docker build ──────────────────────────────────────────
+      # FIX 6: set IMAGE_FULL so Trivy and push steps can reference it easily
       - name: Build Docker image
         run: |
           ECR_REGISTRY=${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG=${{ github.sha }}
+          IMAGE_FULL=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
 
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker build -t $IMAGE_FULL .
 
           echo "ECR_REGISTRY=$ECR_REGISTRY" >> $GITHUB_ENV
           echo "IMAGE_TAG=$IMAGE_TAG"       >> $GITHUB_ENV
+          echo "IMAGE_FULL=$IMAGE_FULL"     >> $GITHUB_ENV
 
-      # ── 🔍 Container Scan (Trivy) ─────────────────────────────
+      # ── Trivy scan ────────────────────────────────────────────
+      # FIX 7: reference IMAGE_FULL from env — it's now guaranteed to exist
       - name: Scan image with Trivy
         uses: aquasecurity/trivy-action@0.20.0
         with:
-          image-ref: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.IMAGE_TAG }}
+          image-ref: ${{ env.IMAGE_FULL }}
           format: table
           exit-code: 1
           ignore-unfixed: true
           severity: CRITICAL,HIGH
 
-      # ── Push image ───────────────────────────────────────────
+      # ── Push image ────────────────────────────────────────────
       - name: Push Docker image
-        run: |
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        run: docker push $IMAGE_FULL
 
-      # ── EKS + Helm ───────────────────────────────────────────
+      # ── EKS + Helm ────────────────────────────────────────────
       - name: Update kubeconfig
         run: |
           aws eks update-kubeconfig \
@@ -137,7 +149,7 @@ jobs:
             --namespace portfolio \
             --wait
 
-      # ── Smoke test ───────────────────────────────────────────
+      # ── Smoke test ────────────────────────────────────────────
       - name: Smoke test
         run: |
           kubectl rollout status deployment/$HELM_RELEASE \
