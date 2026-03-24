@@ -9,7 +9,7 @@ env:
   # ECR_REPOSITORY: my-portfolio
   EKS_CLUSTER: my-cluster
   HELM_RELEASE: portfolio
-  # JAVA_VERSION: "21"
+  JAVA_VERSION: "21"
 
 # 🔥 REQUIRED FOR OIDC
 permissions:
